@@ -8,7 +8,7 @@
   </information>
   <resources>
     <j2se version="1.6+" href="http://java.sun.com/products/autodl/j2se"/>
-    <jar href="MakeDatabase.jar" size="15864" download="eager" />
+    <jar href="MakeDatabase.jar" size="16394" download="eager" />
     <jar href="lib\controlsfx-8.40.14.jar" size="1215643" download="eager" />
     <jar href="lib\controlsfx-samples-8.40.12.jar" size="665038" download="eager" />
     <jar href="lib\db2jcc4-10.1.jar" size="3714904" download="eager" />
@@ -21,6 +21,9 @@
     <jar href="lib\jasperreports-functions-6.3.0.jar" size="32096" download="eager" />
     <jar href="lib\jfoenix-8.0.5.jar" size="2657082" download="eager" />
   </resources>
+  <applet-desc  width="800" height="600" main-class="com.javafx.main.NoJavaFXFallback"  name="MakeDatabase" >
+    <param name="requiredFXVersion" value="8.0+"/>
+  </applet-desc>
   <jfx:javafx-desc  width="800" height="600" main-class="makedatabase.MakeDatabase"  name="MakeDatabase" />
   <update check="always"/>
 </jnlp>

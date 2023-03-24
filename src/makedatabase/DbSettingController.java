@@ -18,6 +18,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -88,14 +89,10 @@ public class DbSettingController implements Initializable {
 
     void filltoTextField() {
         tablenameModel Name = new tablenameModel();
-        table_name.setOnMouseClicked(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent event) {
-                tablenameModel model = table_name.getItems()
-                        .get(table_name.getSelectionModel().getSelectedIndex());
-                tablename.setText(model.getTableName());
-
-            }
+        table_name.setOnMouseClicked((MouseEvent event) -> {
+            tablenameModel model = table_name.getItems()
+                    .get(table_name.getSelectionModel().getSelectedIndex());
+            tablename.setText(model.getTableName());
         });
 
     }
@@ -105,7 +102,6 @@ public class DbSettingController implements Initializable {
             inputStream = new FileInputStream("setting.properties");
             properties.load(inputStream);
             String username = properties.getProperty("user");
-            
 
             tnames.clear();
             tabname.setCellValueFactory(new PropertyValueFactory<>("tableName"));
@@ -149,6 +145,102 @@ public class DbSettingController implements Initializable {
         sortedData.comparatorProperty().bind(table_name.comparatorProperty());
 
         table_name.setItems(sortedData);
+    }
+
+    void getdddl(String tableName) {
+        try {
+
+            // Connect to the database
+            Connection conn = new dbConnection().java_connection();// replace with your connection details
+
+            // Set auto-commit to false
+            conn.setAutoCommit(false);
+
+            // Get the table metadata
+            DatabaseMetaData metadata = conn.getMetaData();
+            ResultSet tableInfo = metadata.getTables(null, null, tableName, null);
+
+            // Check if the table exists
+            if (!tableInfo.next()) {
+                System.out.println("Table " + tableName + " does not exist.");
+                return;
+            }
+
+            // Get the column metadata for the table
+            ResultSet columnInfo = metadata.getColumns(null, null, tableName, null);
+
+            // Get the primary key metadata for the table
+            ResultSet pkInfo = metadata.getPrimaryKeys(null, null, tableName);
+
+            // Get the foreign key metadata for the table
+            ResultSet fkInfo = metadata.getImportedKeys(null, null, tableName);
+
+            // Generate the DDL for the table
+            StringBuilder ddl = new StringBuilder();
+            ddl.append("CREATE TABLE ").append(tableName).append(" (\n");
+
+            // Add columns
+            while (columnInfo.next()) {
+                String columnName = columnInfo.getString("COLUMN_NAME");
+                String columnType = columnInfo.getString("TYPE_NAME");
+                int columnSize = columnInfo.getInt("COLUMN_SIZE");
+                int decimalDigits = columnInfo.getInt("DECIMAL_DIGITS");
+                int nullable = columnInfo.getInt("NULLABLE");
+                 String autoIncrement = columnInfo.getString("IS_AUTOINCREMENT");
+
+                ddl.append(columnName).append(" ").append(columnType).append("(")
+                        .append(columnSize).append(",").append(decimalDigits).append(")");
+
+                if (nullable == DatabaseMetaData.columnNoNulls) {
+                    ddl.append(" NOT NULL");
+                }
+                if (autoIncrement.equalsIgnoreCase("YES")) {
+                    ddl.append(" GENERATED ALWAYS AS IDENTITY");
+                }
+
+                ddl.append(", \n");
+            }
+
+            // Add primary key constraint
+            StringBuilder pkConstraint = new StringBuilder();
+            while (pkInfo.next()) {
+                String pkColumnName = pkInfo.getString("COLUMN_NAME");
+                pkConstraint.append(pkColumnName).append(",\n ");
+            }
+            if (pkConstraint.length() > 0) {
+                pkConstraint.setLength(pkConstraint.length() - 2); // remove trailing comma
+                ddl.append("PRIMARY KEY (").append(pkConstraint).append("), ");
+            }
+
+            // Add foreign key constraints
+            while (fkInfo.next()) {
+                String fkColumnName = fkInfo.getString("FKCOLUMN_NAME");
+                String pkTableName = fkInfo.getString("PKTABLE_NAME");
+                String pkColumnName = fkInfo.getString("PKCOLUMN_NAME");
+
+                ddl.append("FOREIGN KEY (").append(fkColumnName).append(") REFERENCES ")
+                        .append(pkTableName).append("(").append(pkColumnName).append("), ");
+            }
+
+            ddl.setLength(ddl.length() - 2); // remove trailing comma
+            ddl.append(")");
+
+            System.out.println(ddl.toString());
+            viewddl.setText(ddl.toString());
+
+            // Commit the transaction
+            conn.commit();
+
+            // Close the resources
+            columnInfo.close();
+            pkInfo.close();
+            fkInfo.close();
+            conn.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+
+        }
     }
 
     public String getddl(final String tableName) {
@@ -225,7 +317,43 @@ public class DbSettingController implements Initializable {
 
     @FXML
     private void generateddl(ActionEvent event) {
-        getddl(tablename.getText());
-    }
+        try {
+           // getdddl(tablename.getText().toUpperCase());
+            
+            
+            
+            Statement stmt = conn.createStatement();
+            
+            // Generate DDL statements for the table and its constraints
+            String ddl = generateDDL(stmt, tablename.getText().toUpperCase());
 
+            // Print the DDL statements
+            System.out.println(ddl);
+
+            // Close the statement and connection
+            stmt.close();
+            conn.close();
+        } catch (SQLException ex) {
+            Logger.getLogger(DbSettingController.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+ private static String generateDDL(Statement stmt, String tableName) throws SQLException {
+
+        StringBuilder ddlBuilder = new StringBuilder();
+
+        // Generate DDL for the table
+        ResultSet rs = stmt.executeQuery("SELECT db2look('-t " + tableName + " -e -o -d WASHIDI -z MALIPLUS') FROM SYSIBM.SYSDUMMY1");
+        if (rs.next()) {
+            ddlBuilder.append(rs.getString(1));
+        }
+
+        // Generate DDL for the constraints
+        rs = stmt.executeQuery("SELECT db2look('-d WASHIDI -z MALIPLUS -e -o -xref " + tableName + "') FROM SYSIBM.SYSDUMMY1");
+        if (rs.next()) {
+            ddlBuilder.append(rs.getString(1));
+        }
+
+        return ddlBuilder.toString();
+
+    }
 }
